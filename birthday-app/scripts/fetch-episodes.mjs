@@ -22,9 +22,14 @@ const CONTENT = path.join(here, "..", "data", "content.ts");
 
 const API = "https://api.tvmaze.com";
 
-/** Where a title is ambiguous, pin the show by its TVmaze id. */
-const PINNED = {
-  "reno911": 1370, // Reno 911!, not the film
+/**
+ * Where a title is ambiguous, pin the show by IMDb id, which is far less
+ * guessable than a TVmaze id. A wrong id 404s and that show falls back to the
+ * hand written counts, rather than silently importing the wrong series.
+ */
+const PINNED_IMDB = {
+  // The original 2003 run, not the 2020 revival a title search lands on.
+  reno911: "tt0370194",
 };
 
 /** Reads the seeded shows out of content.ts without importing TypeScript. */
@@ -74,9 +79,9 @@ function detectParts(episodes) {
 }
 
 async function fetchShow({ id, title }) {
-  const pinned = PINNED[id];
+  const pinned = PINNED_IMDB[id];
   const show = pinned
-    ? await getJson(`${API}/shows/${pinned}`)
+    ? await getJson(`${API}/lookup/shows?imdb=${pinned}`)
     : await getJson(`${API}/singlesearch/shows?q=${encodeURIComponent(title)}`);
 
   const episodes = await getJson(`${API}/shows/${show.id}/episodes`);

@@ -286,11 +286,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const withData = (show: LibraryShow): LibraryShow => {
       const data = generatedShow(show.id);
       if (!data?.seasons.length) return show;
-      return {
-        ...show,
-        seasons: data.seasons,
-        parts: data.parts.length ? data.parts : show.parts,
-      };
+      const merged = [...(show.parts ?? [])];
+      for (const group of data.parts) {
+        const already = merged.some(
+          (g) => g.season === group.season && g.episodes[0] === group.episodes[0],
+        );
+        if (!already) merged.push(group);
+      }
+      return { ...show, seasons: data.seasons, parts: merged };
     };
 
     const seed: LibraryShow[] = [
