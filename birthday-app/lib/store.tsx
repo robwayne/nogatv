@@ -27,6 +27,7 @@ import {
   type Rec,
   type Show,
 } from "@/data/content";
+import { generatedShow } from "@/lib/episodes";
 import { DEFAULT_SERVICE, isKnownService } from "@/lib/services";
 
 export type Status = "watched" | "watchlist";
@@ -280,6 +281,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const shows = useMemo<LibraryShow[]>(() => {
+    // Real episode data, where the build managed to fetch it, replaces the
+    // approximate counts and the hand listed two-parters.
+    const withData = (show: LibraryShow): LibraryShow => {
+      const data = generatedShow(show.id);
+      if (!data?.seasons.length) return show;
+      return {
+        ...show,
+        seasons: data.seasons,
+        parts: data.parts.length ? data.parts : show.parts,
+      };
+    };
+
     const seed: LibraryShow[] = [
       ...WATCHED.map((s) => ({ ...s, status: "watched" as Status, custom: false })),
       ...WATCHLIST.map((s) => ({ ...s, status: "watchlist" as Status, custom: false })),
@@ -287,7 +300,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const custom: LibraryShow[] = state.customShows.map((s) => ({ ...s, custom: true }));
     return [...seed, ...custom]
       .filter((s) => !state.removedIds.includes(s.id))
-      .map((s) => ({ ...s, status: state.statusOverrides[s.id] ?? s.status }));
+      .map((s) => ({ ...s, status: state.statusOverrides[s.id] ?? s.status }))
+      .map(withData);
   }, [state]);
 
   const recs = useMemo<LibraryRec[]>(() => {

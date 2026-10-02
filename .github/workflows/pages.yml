@@ -36,6 +36,13 @@ jobs:
 
       - run: npm ci
 
+      # Real episode titles, air dates and IMDb ids. The runner has open
+      # internet; if TVmaze is down the script leaves the committed file alone
+      # and the build carries on with it.
+      - name: Fetch episode data
+        run: node scripts/fetch-episodes.mjs
+        continue-on-error: true
+
       - name: Build the static export
         env:
           STATIC_EXPORT: "1"

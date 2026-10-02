@@ -13,6 +13,7 @@ import {
   type Program,
 } from "@/lib/guide";
 import { ServiceBadge } from "@/components/ServiceBadge";
+import { episodeTitle } from "@/lib/episodes";
 import { SITE } from "@/data/content";
 import { useStore } from "@/lib/store";
 
@@ -22,6 +23,13 @@ const SCROLL_MS = 3400;
 const COLUMNS = 3;
 
 /** The blue-and-gold listings grid, scrolling on its own like it's 1996. */
+/** The episode's name for a program, when the build fetched one. */
+function titleOf(program: Program) {
+  const parsed = program.episode?.match(/^S(\d+)E(\d+)$/);
+  if (!parsed) return null;
+  return episodeTitle(program.show.id, Number(parsed[1]), Number(parsed[2]));
+}
+
 export function TvGuide() {
   const { ready, shows, entries, setPlan, showRating, episodeRating, serviceFor } = useStore();
   const [slot, setSlot] = useState(() => currentSlot());
@@ -182,7 +190,7 @@ export function TvGuide() {
               </span>
             </div>
             <h3 className="mt-2 text-2xl font-bold leading-tight text-[#ffd84d] sm:text-4xl">
-              {highlight.program.show.title}
+              {titleOf(highlight.program) ?? highlight.program.show.title}
               {highlight.program.episode ? (
                 <span className="ml-3 text-base font-normal tracking-[0.2em] text-[#8fa2ff]">
                   {highlight.program.episode}
@@ -317,6 +325,11 @@ export function TvGuide() {
                           {program.episode ? (
                             <div className="mt-0.5 text-[0.6rem] tracking-[0.15em] text-[#8fa2ff]">
                               {program.episode}
+                              {titleOf(program) ? (
+                                <span className="ml-1.5 normal-case tracking-normal text-[#c7d0ff]">
+                                  {titleOf(program)}
+                                </span>
+                              ) : null}
                             </div>
                           ) : null}
                           <div className="mt-0.5 line-clamp-1 text-[0.65rem] italic text-[#6d7cc9]">

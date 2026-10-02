@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { EpisodeRatings } from "@/components/EpisodeRatings";
 import { ServiceBadge } from "@/components/ServiceBadge";
+import { ShowShuffler } from "@/components/ShowShuffler";
+import { imdbUrl } from "@/lib/episodes";
 import { Stars } from "@/components/Stars";
 import { SERVICES } from "@/lib/services";
 import { useStore, type LibraryShow } from "@/lib/store";
@@ -38,7 +40,7 @@ export function TapeCard({ show }: { show: LibraryShow }) {
     serviceFor,
     setService,
   } = useStore();
-  const [panel, setPanel] = useState<"log" | "episodes" | null>(null);
+  const [panel, setPanel] = useState<"log" | "episodes" | "shuffle" | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [picking, setPicking] = useState(false);
   const [rating, setRating] = useState(0);
@@ -79,6 +81,16 @@ export function TapeCard({ show }: { show: LibraryShow }) {
             <h3 className="text-base font-bold tracking-wide">{show.title}</h3>
             {show.years ? (
               <span className="text-[0.7rem] tracking-widest text-vhs-dim">{show.years}</span>
+            ) : null}
+            {imdbUrl(show.id) ? (
+              <a
+                href={imdbUrl(show.id)!}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[0.6rem] uppercase tracking-[0.15em] text-vhs-dim hover:text-vhs-amber"
+              >
+                imdb ↗
+              </a>
             ) : null}
           </div>
 
@@ -135,6 +147,13 @@ export function TapeCard({ show }: { show: LibraryShow }) {
               className="text-vhs-cyan hover:text-vhs-amber"
             >
               {panel === "log" ? "hide log" : `log${entries.length ? ` (${entries.length})` : ""}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanel((p) => (p === "shuffle" ? null : "shuffle"))}
+              className="text-vhs-magenta hover:text-vhs-amber"
+            >
+              {panel === "shuffle" ? "hide shuffle" : "shuffle episodes"}
             </button>
             <button
               type="button"
@@ -212,6 +231,12 @@ export function TapeCard({ show }: { show: LibraryShow }) {
           </button>
         )}
       </div>
+
+      {panel === "shuffle" ? (
+        <div className="mt-4 border-t border-vhs-line pt-4">
+          <ShowShuffler show={show} />
+        </div>
+      ) : null}
 
       {panel === "episodes" ? (
         <div className="mt-4 border-t border-vhs-line pt-4">

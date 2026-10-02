@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Stars } from "@/components/Stars";
+import { episodeTitle } from "@/lib/episodes";
 import { episodeCode } from "@/lib/rank";
 import { useStore, type LibraryShow } from "@/lib/store";
 
@@ -17,10 +18,7 @@ export function EpisodeRatings({ show }: { show: LibraryShow }) {
 
   if (!seasons.length) {
     return (
-      <p className="text-xs text-vhs-dim">
-        No episode list for this one. Add a `seasons` array in data/content.ts and the episodes
-        show up here.
-      </p>
+      <p className="text-xs text-vhs-dim">No episode list for this one yet.</p>
     );
   }
 
@@ -66,6 +64,11 @@ export function EpisodeRatings({ show }: { show: LibraryShow }) {
                 <span className="w-16 shrink-0 tracking-[0.1em] text-vhs-dim">
                   {episodeCode(open, episode)}
                 </span>
+                {episodeTitle(show.id, open, episode) ? (
+                  <span className="min-w-0 flex-1 truncate text-vhs-text">
+                    {episodeTitle(show.id, open, episode)}
+                  </span>
+                ) : null}
                 <Stars
                   value={rating}
                   onChange={(v) => setEpisodeRating(show.id, open, episode, v)}

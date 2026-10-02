@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ServiceBadge } from "@/components/ServiceBadge";
+import { episodeTitle } from "@/lib/episodes";
 import { bestCandidate, rankCandidates, type Candidate } from "@/lib/rank";
 import { useStore } from "@/lib/store";
 
@@ -101,6 +102,11 @@ export function TonightPicker() {
                 fallback={!serviceFor(pick.show.id).chosen}
               />
             </div>
+            {episodeTitle(pick.show.id, pick.season, pick.episode) ? (
+              <p className="mt-2 text-base text-vhs-text">
+                {episodeTitle(pick.show.id, pick.season, pick.episode)}
+              </p>
+            ) : null}
             <p className="mt-3 max-w-xl text-sm text-vhs-dim">
               {pick.reasons.length
                 ? pick.reasons.join(" · ")
