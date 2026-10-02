@@ -1,0 +1,8 @@
+# Minimal project config for the Supabase GitHub integration. The working
+# directory configured in Supabase is the repository root, so this folder and
+# its migrations are what it reads.
+
+project_id = "nogatv"
+
+[db]
+major_version = 15

@@ -28,6 +28,7 @@ import {
   type Show,
 } from "@/data/content";
 import { generatedShow } from "@/lib/episodes";
+import { mergeState, pullState, pushState, subscribe, syncConfigured } from "@/lib/sync";
 import { DEFAULT_SERVICE, isKnownService } from "@/lib/services";
 
 export type Status = "watched" | "watchlist";
@@ -214,6 +215,8 @@ function linkRecToLibrary(
 
 type Ctx = {
   ready: boolean;
+  /** True when this browser is backed by Supabase rather than itself. */
+  synced: boolean;
   shows: LibraryShow[];
   watched: LibraryShow[];
   watchlist: LibraryShow[];
@@ -268,14 +271,45 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setState(load());
+    const local = load();
+    setState(local);
     setReady(true);
+
+    if (!syncConfigured()) return;
+
+    // Pull once on open, then keep listening. A remote change is merged into
+    // what this browser has rather than replacing it outright.
+    let cancelled = false;
+    pullState().then((remote) => {
+      if (cancelled || !remote) return;
+      const merged = mergeState(local as unknown as Record<string, unknown>, remote.state);
+      setState(merged as unknown as Persisted);
+      save(merged as unknown as Persisted);
+    });
+
+    const unsubscribe = subscribe((incoming) => {
+      setState((prev) => {
+        const merged = mergeState(
+          prev as unknown as Record<string, unknown>,
+          incoming,
+        ) as unknown as Persisted;
+        save(merged);
+        return merged;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   const update = useCallback((fn: (prev: Persisted) => Persisted) => {
     setState((prev) => {
       const next = fn(prev);
       save(next);
+      // Only local edits push; applying a remote change must not echo back.
+      pushState(next as unknown as Record<string, unknown>);
       return next;
     });
   }, []);
@@ -333,6 +367,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     return {
       ready,
+      synced: syncConfigured(),
       shows,
       watched: shows.filter((s) => s.status === "watched"),
       watchlist: shows.filter((s) => s.status === "watchlist"),

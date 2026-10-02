@@ -47,6 +47,10 @@ jobs:
         env:
           STATIC_EXPORT: "1"
           GITHUB_PAGES: "1"
+          # Set these two as repository secrets to turn syncing on. Without
+          # them the build still succeeds and the site uses browser storage.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: npx next build
 
       # Without this, Pages runs the output through Jekyll, which drops the
