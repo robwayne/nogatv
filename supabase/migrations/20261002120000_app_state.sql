@@ -32,8 +32,15 @@ create policy "write the shared room"
   using (room = 'nogatv')
   with check (room = 'nogatv');
 
--- Lets the other phone hear about a change without reloading.
-alter publication supabase_realtime add table public.app_state;
+-- Lets the other phone hear about a change without reloading. Wrapped so the
+-- whole file can be run again without erroring on an already added table.
+do $$
+begin
+  alter publication supabase_realtime add table public.app_state;
+exception
+  when duplicate_object then null;
+end
+$$;
 
 insert into public.app_state (room) values ('nogatv')
   on conflict (room) do nothing;
