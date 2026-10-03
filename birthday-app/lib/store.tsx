@@ -27,7 +27,8 @@ import {
   type Rec,
   type Show,
 } from "@/data/content";
-import { generatedShow } from "@/lib/episodes";
+import { generatedShow, registerLookedUp, type GeneratedShow } from "@/lib/episodes";
+import { lookupShow } from "@/lib/lookup";
 import { mergeState, pullState, pushState, subscribe, syncConfigured } from "@/lib/sync";
 import { DEFAULT_SERVICE, isKnownService } from "@/lib/services";
 
@@ -85,6 +86,8 @@ type Persisted = {
   removedRecIds: string[];
   /** Edits layered over the seeded recommendations in data/content.ts. */
   recEdits: Record<string, Partial<Rec>>;
+  /** Shows looked up from TVmaze in the browser, keyed by show id. */
+  lookedUp: Record<string, GeneratedShow>;
   customBooks: Book[];
   bookEdits: Record<string, Partial<Book>>;
   removedBookIds: string[];
@@ -112,6 +115,7 @@ const EMPTY: Persisted = {
   recDone: {},
   removedRecIds: [],
   recEdits: {},
+  lookedUp: {},
   customBooks: [],
   bookEdits: {},
   removedBookIds: [],
@@ -255,6 +259,9 @@ type Ctx = {
   }) => void;
   /** The chosen service, or Stremio when nobody has said. */
   serviceFor: (showId: string) => { id: string; chosen: boolean };
+  /** "looking" while a lookup is in flight, "missed" when it found nothing. */
+  lookupState: Record<string, "looking" | "missed">;
+  lookUpShow: (showId: string) => void;
   setService: (showId: string, service: string) => void;
   setStatus: (id: string, status: Status) => void;
   removeShow: (id: string) => void;
@@ -304,6 +311,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const [lookups, setLookups] = useState<Record<string, "looking" | "missed">>({});
+
   const update = useCallback((fn: (prev: Persisted) => Persisted) => {
     setState((prev) => {
       const next = fn(prev);
@@ -315,6 +324,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const shows = useMemo<LibraryShow[]>(() => {
+    registerLookedUp(state.lookedUp ?? {});
+
     // Real episode data, where the build managed to fetch it, replaces the
     // approximate counts and the hand listed two-parters.
     const withData = (show: LibraryShow): LibraryShow => {
@@ -341,6 +352,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       .map(withData);
   }, [state]);
 
+  /**
+   * Fetches a show's episodes the moment it is added, so a show typed in on a
+   * phone gets the same titles, season counts and IMDb link as the ones the
+   * build knows about.
+   */
+  const runLookup = useCallback(
+    async (showId: string, title: string) => {
+      setLookups((prev) => ({ ...prev, [showId]: "looking" }));
+      const data = await lookupShow(showId, title);
+
+      if (!data) {
+        setLookups((prev) => ({ ...prev, [showId]: "missed" }));
+        return;
+      }
+
+      setLookups((prev) => {
+        const next = { ...prev };
+        delete next[showId];
+        return next;
+      });
+      update((prev) => ({ ...prev, lookedUp: { ...prev.lookedUp, [showId]: data } }));
+    },
+    [update],
+  );
+
   const recs = useMemo<LibraryRec[]>(() => {
     const seed: LibraryRec[] = RECOMMENDATIONS.map((r) => ({ ...r, custom: false }));
     const custom: LibraryRec[] = state.customRecs.map((r) => ({ ...r, custom: true }));
@@ -361,6 +397,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       .filter((b) => !state.removedBookIds.includes(b.id))
       .map((b) => ({ ...b, ...state.bookEdits[b.id] }));
   }, [state]);
+
+  // Anything in the library without episode data gets looked up once, whether
+  // it was typed in here, added from a Homework shelf, or arrived from the
+  // other phone.
+  useEffect(() => {
+    if (!ready) return;
+    for (const show of shows) {
+      if (generatedShow(show.id) || lookups[show.id]) continue;
+      void runLookup(show.id, show.title);
+    }
+  }, [ready, shows, lookups, runLookup]);
 
   const value = useMemo<Ctx>(() => {
     const byId = (id: string) => shows.find((s) => s.id === id);
@@ -540,6 +587,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           else next[showId] = service;
           return { ...prev, services: next };
         }),
+      lookupState: lookups,
+      lookUpShow: (showId) => {
+        const show = shows.find((s) => s.id === showId);
+        if (show) void runLookup(show.id, show.title);
+      },
       addShow: ({ title, years, note, status, seasons, kind, service }) => {
         const trimmed = title.trim();
         if (!trimmed) return;
@@ -603,7 +655,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       exportJson: () => JSON.stringify(state, null, 2),
       resetAll: () => update(() => EMPTY),
     };
-  }, [ready, shows, recs, books, state, update]);
+  }, [ready, shows, recs, books, state, update, lookups, runLookup]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }

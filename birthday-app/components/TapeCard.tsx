@@ -39,6 +39,8 @@ export function TapeCard({ show }: { show: LibraryShow }) {
     setShowRating,
     serviceFor,
     setService,
+    lookupState,
+    lookUpShow,
   } = useStore();
   const [panel, setPanel] = useState<"log" | "episodes" | "shuffle" | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -81,6 +83,21 @@ export function TapeCard({ show }: { show: LibraryShow }) {
             <h3 className="text-base font-bold tracking-wide">{show.title}</h3>
             {show.years ? (
               <span className="text-[0.7rem] tracking-widest text-vhs-dim">{show.years}</span>
+            ) : null}
+            {lookupState[show.id] === "looking" ? (
+              <span className="text-[0.6rem] uppercase tracking-[0.15em] text-vhs-cyan">
+                looking it up…
+              </span>
+            ) : null}
+            {lookupState[show.id] === "missed" ? (
+              <button
+                type="button"
+                onClick={() => lookUpShow(show.id)}
+                className="text-[0.6rem] uppercase tracking-[0.15em] text-vhs-magenta hover:text-vhs-amber"
+                title="No match on TVmaze. Click to try again."
+              >
+                no match ↻
+              </button>
             ) : null}
             {imdbUrl(show.id) ? (
               <a
@@ -148,6 +165,15 @@ export function TapeCard({ show }: { show: LibraryShow }) {
             >
               {panel === "log" ? "hide log" : `log${entries.length ? ` (${entries.length})` : ""}`}
             </button>
+            {!imdbUrl(show.id) && !lookupState[show.id] ? (
+              <button
+                type="button"
+                onClick={() => lookUpShow(show.id)}
+                className="text-vhs-dim hover:text-vhs-amber"
+              >
+                find episodes
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => setPanel((p) => (p === "shuffle" ? null : "shuffle"))}
